@@ -73,7 +73,13 @@ class ValidationService {
 
 class StorageService {
     public static void saveResult(String player, int attempts, boolean win) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter("game_result.txt", true))) {
+        try (BufferedWriter writer =
+                     new BufferedWriter(new FileWriter("game_result.txt", true))) {
+
+            writer.write("Player: " + player +
+                    ", Attempts: " + attempts +
+                    ", Result: " + (win ? "WIN" : "LOSE"));
+            writer.newLine();
 
         } catch (IOException e) {
             System.out.println("Unable to save game result.");
@@ -81,47 +87,68 @@ class StorageService {
     }
 }
 
+class GameController {
+    public static boolean restartGame(Scanner scanner) {
+        System.out.print("Do you want to play again? (Yes/No): ");
+        return scanner.nextLine().equalsIgnoreCase("yes");
+    }
+}
+
 public class GuessApp {
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);  System.out.println("Welcome to the Guessing App");
-        System.out.println("Enter Player Name: ");
-        String player = scanner.nextLine();
-        GameConfig config = new GameConfig();
-        config.showRules();
 
+        Scanner scanner = new Scanner(System.in);
+        boolean restart;
 
-        int attempts = 0;
-        int hintsUsed = 0;
-        boolean win = false;
+        System.out.println("Welcome to the Guessing App");
 
-        while (attempts < config.getMaxAttemps()) {
-            try {
-                System.out.print("Enter your guess: ");
-                int guess = ValidationService.validateInput(scanner.nextLine());
-                attempts++;
+        do {
+            System.out.print("Enter Player Name: ");
+            String player = scanner.nextLine();
 
-                String result = GuessValidator.validateGuess(guess, config.getTargetNumber());
+            GameConfig config = new GameConfig();
+            config.showRules();
 
-                if (!"CORRECT".equals(result) && hintsUsed < config.getMaxHints()) {
-                    hintsUsed++;
-                    System.out.println(
-                            HintService.generateHint(config.getTargetNumber(), hintsUsed)
-                    );
+            int attempts = 0;
+            int hintsUsed = 0;
+            boolean win = false;
+
+            while (attempts < config.getMaxAttemps()) {
+                try {
+                    System.out.print("Enter your guess: ");
+                    int guess = ValidationService.validateInput(scanner.nextLine());
+                    attempts++;
+
+                    String result = GuessValidator.validateGuess(
+                            guess, config.getTargetNumber());
+
+                    if (!"CORRECT".equals(result) &&
+                            hintsUsed < config.getMaxHints()) {
+                        hintsUsed++;
+                        System.out.println(
+                                HintService.generateHint(
+                                        config.getTargetNumber(), hintsUsed)
+                        );
+                    }
+
+                    System.out.println(result);
+
+                    if ("CORRECT".equals(result)) {
+                        win = true;
+                        System.out.println("🎉 You won in " + attempts + " attempts!");
+                        break;
+                    }
+
+                } catch (InvalidInputException e) {
+                    System.out.println(e.getMessage());
                 }
-
-                System.out.println(result);
-
-                if ("CORRECT".equals(result)) {
-                    System.out.println("🎉 You won in " + attempts + " attempts!");
-                    return;
-                }
-
-            } catch (InvalidInputException e) {
-                System.out.println(e.getMessage());
             }
-        }
-        StorageService.saveResult(player, attempts, win);
 
-        System.out.println("❌ Game Over! The correct number was: " + config.getTargetNumber());
+            StorageService.saveResult(player, attempts, win);
+            restart = GameController.restartGame(scanner);
+
+        } while (restart);
+
+        System.out.println("Thanks for playing!");
     }
 }
